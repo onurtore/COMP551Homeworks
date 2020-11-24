@@ -1,0 +1,23 @@
+Local Machine
+-connect_school
+-connect_shodan
+-connect_notebook
+    Go to your web browser and go localhost:8888
+-cd_vis
+
+Shodan
+-create_venv_p2
+-run_jupyter
+-create_venv_p2
+
+Problems
+-If you cant find the virtual kernel in jupyter notebook:
+    Inside your virtual environment:
+        pip install ipykernel
+    Then run the kernel "self-install" script:
+        python -m ipykernel install --user --name=my-virtualenv-name
+    
+    [Taken from python -m ipykernel install --user --name=comp451]
+
+
+
