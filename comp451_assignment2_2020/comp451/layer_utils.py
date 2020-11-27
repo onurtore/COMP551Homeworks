@@ -2,6 +2,16 @@ from comp451.layers import *
 from comp451.fast_layers import *
 
 
+
+def affine_lrelu_do_forward(x, w, b, lrelu_param,dropout,droput_param):
+
+    do_cache  = None
+    out,cache = affine_lrelu_forward(x, w, b,lrelu_param)
+    if dropout:
+        out, do_cache = dropout_forward(out,droput_param)
+
+    return out,(cache[0],cache[1],do_cache)
+
 def affine_lrelu_forward(x, w, b, lrelu_param):
     """
     Convenience layer that performs an affine transform followed by a LeakyReLU
@@ -19,6 +29,14 @@ def affine_lrelu_forward(x, w, b, lrelu_param):
     out, lrelu_cache = leaky_relu_forward(a, lrelu_param)
     cache = (fc_cache, lrelu_cache)
     return out, cache
+
+def affine_lrelu_do_backward(dout, cache, dropout):
+
+    fc_cache, lrelu_cache, do_cache  = cache
+    if dropout:
+        dout = dropout_backward(dout,do_cache)
+
+    return affine_lrelu_backward(dout,(fc_cache,lrelu_cache))
 
 
 def affine_lrelu_backward(dout, cache):

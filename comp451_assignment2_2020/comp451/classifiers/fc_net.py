@@ -255,7 +255,7 @@ class FullyConnectedNet(object):
         cache_list = []
 
         for i in range(self.num_layers-1):
-          X,cache = affine_lrelu_forward(X, self.params['W'+str(i+1)],self.params['b'+str(i+1)],{'alpha':self.alpha})
+          X,cache = affine_lrelu_do_forward(X, self.params['W'+str(i+1)],self.params['b'+str(i+1)],{'alpha':self.alpha},self.use_dropout,self.dropout_param)
           cache_list.append(cache)
         scores,cache = affine_forward(X,self.params['W'+str(self.num_layers)],self.params['b'+str(self.num_layers)])
         cache_list.append(cache)
@@ -291,7 +291,7 @@ class FullyConnectedNet(object):
         grads['b'+str(self.num_layers)] = db_last
 
         for i in range(self.num_layers - 2, -1, -1):
-          dx, dw, db = affine_lrelu_backward(dout, cache_list[i])
+          dx, dw, db = affine_lrelu_do_backward(dout, cache_list[i],self.use_dropout)
           grads['W'+str(i + 1)] = dw + self.reg * self.params['W' + str(i + 1)]
           grads['b'+str(i + 1)] = db
           dout = dx
