@@ -334,6 +334,45 @@ def dropout_backward(dout, cache):
     return dx
 
 
+def next_window(matrix_shape,kernel_size,stride):
+  """
+  Given a matrix it returns the window coordinates and output coordinates
+  If no more window left then it returns -1
+
+  Please refer to conv_forward_naive function to more information
+  about the params
+  """
+  
+  window_x = 0
+  coordinate_x = 0
+  while (window_x + kernel_size[0]) <= matrix_shape[0]:
+    window_y = 0
+    coordinate_y = 0
+    while (window_y+kernel_size[1]) <= matrix_shape[1]:
+      yield (window_x,window_y,coordinate_x,coordinate_y)
+      window_y += stride
+      coordinate_y += 1
+    window_x += stride
+    coordinate_x += 1
+  return -1
+
+
+def conv(x,w,b):
+  """
+  Applies a convolution with two windows over all samples, filters, channels
+  Please refer to conv_forward_naive function for param info
+  """
+
+  res = []
+  for i in range(x.shape[0]): #Over samples
+    for k in range(w.shape[0]): #Over filters
+      out  = 0
+      for j in range(x.shape[1]): #Over channels
+        out += float(np.dot(x[i,j,:,:].flatten()[:,np.newaxis].T,w[k,j,:,:].flatten()[:,np.newaxis]))
+      out += b[k]
+      res.append(out)
+  return np.array(res).reshape((x.shape[0],w.shape[0]))
+
 def conv_forward_naive(x, w, b, conv_param):
     """
     A naive implementation of the forward pass for a convolutional layer.
@@ -353,7 +392,7 @@ def conv_forward_naive(x, w, b, conv_param):
       - 'stride': The number of pixels between adjacent receptive fields in the
         horizontal and vertical directions.
       - 'pad': The number of pixels that will be used to zero-pad the input. 
-        
+
 
     During padding, 'pad' zeros should be placed symmetrically (i.e equally on both sides)
     along the height and width axes of the input. Be careful not to modfiy the original
@@ -371,9 +410,15 @@ def conv_forward_naive(x, w, b, conv_param):
     # Hint: you can use the function np.pad for padding.                      #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-            
+    x_  = np.pad(x, ((0,0),(0,0),(conv_param['pad'],conv_param['pad']),(conv_param['pad'],conv_param['pad']) ), 'constant', constant_values=((0,0),(0,0),(0,0),(0,0)))
+    H_  = int(1 + (x_.shape[2] * conv_param['pad'] - w.shape[2]) / conv_param['stride'])
+    W_  = int(1 + (x_.shape[3] * conv_param['pad'] - w.shape[3]) / conv_param['stride'])
+    out = np.zeros((x.shape[0],w.shape[0],H_,W_))#Samples,Filter,H_,W_
+    for window in next_window(x_.shape[2:],w.shape[2:],conv_param['stride']):
+      if window == -1:
+        break
+      window_x,window_y,start_x,start_y = window
+      out[:,:,start_x,start_y] = conv(x_[:,:,window_x:window_x+w.shape[2],window_y:window_y+w.shape[3]],w,b)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -381,6 +426,36 @@ def conv_forward_naive(x, w, b, conv_param):
     ###########################################################################
     cache = (x, w, b, conv_param)
     return out, cache
+
+
+def grad_conv_x(w,dout):
+
+  samples = []
+  for j in range(dout.shape[0]):#Over samples
+    derivative = np.zeros((w.shape[1], w.shape[2],w.shape[3]))
+    for i in range(dout.shape[1]):#Over filters
+      derivative += np.multiply(dout[j,i],w[i,:,:,:])
+    samples.append(derivative)
+  return np.array(samples).reshape((dout.shape[0], w.shape[1],w.shape[2],w.shape[3]))
+
+
+def grad_conv_b(dout):
+  return dout.sum(axis=0)
+
+def grad_conv_w(x,dout):
+  """
+  Gradient operation for the weight vector of convolution.
+
+  Please refer to conv_forward_naive function to more information
+  about the params
+  """
+  filters = []
+  for i in range(dout.shape[1]): #Over filters
+    derivative = np.zeros((x.shape[1],x.shape[2],x.shape[3]))
+    for j in range(dout.shape[0]): #Over samples
+      derivative += np.multiply(dout[j,i],x[j,:,:,:]) #C-H-W
+    filters.append(derivative)
+  return np.array(filters).reshape((dout.shape[1], x.shape[1],x.shape[2],x.shape[3]))
 
 
 def conv_backward_naive(dout, cache):
@@ -403,7 +478,19 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x,w,b,conv_param = cache
+    x_ = np.pad(x, ((0,0),(0,0),(conv_param['pad'],conv_param['pad']),(conv_param['pad'],conv_param['pad']) ), 'constant', constant_values=((0,0),(0,0),(0,0),(0,0)))
+    dx = np.zeros(x_.shape)
+    dw = np.zeros(w.shape)
+    db = np.zeros(b.shape)
+    for window in next_window(x_.shape[2:],w.shape[2:],conv_param['stride']):
+      if window == -1:
+        break
+      window_x,window_y,start_x,start_y = window
+      dw += grad_conv_w(x_[:,:,window_x:window_x+w.shape[2],window_y:window_y+w.shape[3]], dout[:,:,start_x,start_y])
+      db += grad_conv_b(dout[:,:,start_x,start_y])
+      dx[:,:,window_x:window_x+w.shape[2],window_y:window_y+w.shape[3]] += grad_conv_x(w,dout[:,:,start_x,start_y])
+    dx = dx[:,:,conv_param['pad']:-conv_param['pad'], conv_param['pad']:-conv_param['pad']]
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
