@@ -342,17 +342,17 @@ def next_window(matrix_shape,kernel_size,stride):
   Please refer to conv_forward_naive function to more information
   about the params
   """
-  
-  window_x = 0
+
+  window_x     = 0
   coordinate_x = 0
   while (window_x + kernel_size[0]) <= matrix_shape[0]:
-    window_y = 0
+    window_y     = 0
     coordinate_y = 0
     while (window_y+kernel_size[1]) <= matrix_shape[1]:
       yield (window_x,window_y,coordinate_x,coordinate_y)
-      window_y += stride
+      window_y     += stride
       coordinate_y += 1
-    window_x += stride
+    window_x     += stride
     coordinate_x += 1
   return -1
 
@@ -499,6 +499,28 @@ def conv_backward_naive(dout, cache):
     return dx, dw, db
 
 
+def pool(x,type):
+  if type == 'max':
+    return np.max(x,axis=(2,3))
+  if type == 'avg':
+    return np.average(x,axis=(2,3))
+
+def grad_pool(x,type,dout):
+  if type == 'max':
+    idx  = x.reshape(x.shape[0],x.shape[1],-1).argmax(2)
+    out  = np.unravel_index(idx,(x.shape[-2:]))
+    grad = np.zeros(x.shape)
+    for i in range(x.shape[0]):
+      for j in range(x.shape[1]):
+        grad[i,j,out[0][i,j],out[1][i,j]] = dout[i,j]
+    return grad
+  if type == 'avg':
+    grad = np.zeros(x.shape) #Samples, Channels, H, W
+    for i in range(x.shape[0]):
+      for j in range(x.shape[1]):
+        grad[i,j] = dout[i,j] / (x.shape[2] * x.shape[3]) 
+    return grad
+
 def max_pool_forward_naive(x, pool_param):
     """
     A naive implementation of the forward pass for a max-pooling layer.
@@ -524,7 +546,15 @@ def max_pool_forward_naive(x, pool_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    H_  = int(1 + (x.shape[2] - pool_param['pool_height']) / pool_param['stride'])
+    W_  = int(1 + (x.shape[3] - pool_param['pool_width']) / pool_param['stride'])
+    out = np.zeros((x.shape[0],x.shape[1],H_,W_))#Samples,Channels,H_,W_
+    for window in next_window(x.shape[2:],(pool_param['pool_height'],pool_param['pool_width']),pool_param['stride']):
+      if window == -1:
+        break
+      window_x,window_y,start_x,start_y = window
+      out[:,:,start_x,start_y] = pool(x[:,:,window_x:window_x+pool_param['pool_height'],window_y:window_y+pool_param['pool_width']],'max')
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -551,8 +581,14 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
-                    
+    x,pool_param = cache
+    dx = np.zeros(x.shape)
+    for window in next_window(x.shape[2:],(pool_param['pool_height'],pool_param['pool_width']),pool_param['stride']):
+      if window == -1:
+        break
+      window_x,window_y,start_x,start_y = window
+      dx[:,:,window_x:window_x+pool_param['pool_height'],window_y:window_y+pool_param['pool_width']] += grad_pool(x[:,:,window_x:window_x+pool_param['pool_height'],window_y:window_y+pool_param['pool_width']],'max', dout[:,:,start_x,start_y])
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -586,7 +622,14 @@ def avg_pool_forward_naive(x, pool_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    H_  = int(1 + (x.shape[2] - pool_param['pool_height']) / pool_param['stride'])
+    W_  = int(1 + (x.shape[3] - pool_param['pool_width']) / pool_param['stride'])
+    out = np.zeros((x.shape[0],x.shape[1],H_,W_))#Samples,Channels,H_,W_
+    for window in next_window(x.shape[2:],(pool_param['pool_height'],pool_param['pool_width']),pool_param['stride']):
+      if window == -1:
+        break
+      window_x,window_y,start_x,start_y = window
+      out[:,:,start_x,start_y] = pool(x[:,:,window_x:window_x+pool_param['pool_height'],window_y:window_y+pool_param['pool_width']],'avg')
 
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -613,8 +656,14 @@ def avg_pool_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
-                    
+    x,pool_param = cache
+    dx = np.zeros(x.shape)
+    for window in next_window(x.shape[2:],(pool_param['pool_height'],pool_param['pool_width']),pool_param['stride']):
+      if window == -1:
+        break
+      window_x,window_y,start_x,start_y = window
+      dx[:,:,window_x:window_x+pool_param['pool_height'],window_y:window_y+pool_param['pool_width']] += grad_pool(x[:,:,window_x:window_x+pool_param['pool_height'],window_y:window_y+pool_param['pool_width']],'avg', dout[:,:,start_x,start_y])
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
