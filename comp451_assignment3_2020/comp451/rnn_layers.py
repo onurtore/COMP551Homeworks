@@ -164,8 +164,23 @@ def rnn_backward(dh, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N       = dh.shape[0]
+    T       = dh.shape[1]
+    H       = dh.shape[2]
+    D       = cache[0][0].shape[1]
+    dx      = np.zeros((N,T,D))
+    dprev_h = np.zeros((N,H))
+    dWx     = np.zeros((D,H))
+    dWh     = np.zeros((H,H))
+    db      = np.zeros(H)
+    for t in range(T-1,-1,-1):
+        dx_t, dprev_h, dWx_t, dWh_t, db_t = rnn_step_backward(dh[:,t,:] + dprev_h, cache[t])
+        dx[:,t,:]                         = dx_t
+        dWx                              += dWx_t
+        dWh                              += dWh_t
+        db                               += db_t
 
+    dh0 = dprev_h
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
     #                               END OF YOUR CODE                             #
@@ -196,7 +211,8 @@ def word_embedding_forward(x, W):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out   = W[x]
+    cache = (x,W)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -229,7 +245,9 @@ def word_embedding_backward(dout, cache):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     
-    pass
+    x,W = cache
+    dW = np.zeros(W.shape)
+    np.add.at(dW,x,dout)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################

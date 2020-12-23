@@ -160,8 +160,7 @@ class CaptioningRNN(object):
         ############################################################################
 
         return loss, grads
-    
-    
+
     def clip_grad_norm(self, grads, gclip):
         """
         Inputs:
