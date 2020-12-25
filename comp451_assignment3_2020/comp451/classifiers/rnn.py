@@ -173,7 +173,7 @@ class CaptioningRNN(object):
                 }
 
         if self.gclip > 0:
-          grads = self.clip_grad_norm(grads, self.gclip)
+            grads = self.clip_grad_norm(grads, self.gclip)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -231,7 +231,7 @@ class CaptioningRNN(object):
           where each element is an integer in the range [0, V). The first element
           of captions should be the first sampled word, not the <START> token.
         """
-        N        = features.shape[0]
+        N        = features.shape[0] #N = 1, D= 512
         captions = self._null * np.ones((N, max_length), dtype=np.int32)
 
         # Unpack parameters
@@ -265,7 +265,28 @@ class CaptioningRNN(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        #Embed the previous word
+        """
+        At each timestep, we embed the current word, pass it and the previous hidden
+        state to the RNN to get the next hidden state, use the hidden state to get
+        scores for all vocab words, and choose the word with the highest score as
+        the next word. The initial hidden state is computed by applying an affine
+        transform to the input image features, and the initial word is the <START>
+        token.
+        """
+
+        h_init, cache_affine = affine_forward(features, W_proj, b_proj)
+        captions[:, 0]       = self._start
+        curr_word            = np.ones((N, 1), dtype=np.int32) * self._start
+        prev_h               = h_init
+        #Do we need <END>?
+        for t in range(max_length):
+            captions_in_embed, cache_embed = word_embedding_forward(curr_word, W_embed)
+            hidden_states, cache_forward   = rnn_step_forward(np.squeeze(captions_in_embed), prev_h, Wx, Wh, b) #1,1,256 to 256
+            scores, cache_temp_affine      = temporal_affine_forward(hidden_states[:, np.newaxis, :], W_vocab, b_vocab)
+            idx_best                       = np.squeeze(np.argmax(scores, axis=2)) #1,1,1084 to 1084
+            captions[:, t]                 = idx_best
+            curr_word                      = captions[:, t]
+            prev_h                         = hidden_states
 
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
