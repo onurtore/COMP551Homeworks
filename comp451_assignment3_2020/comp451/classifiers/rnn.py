@@ -91,8 +91,7 @@ class CaptioningRNN(object):
 
         Inputs:
         - features: Input image features, of shape (N, D)
-        - captions: Ground-truth captions; an integer array of shape (N, T + 1) where
-          each element is in the range 0 <= y[i, t] < V
+        - captionsca
 
         Returns a tuple of:
         - loss: Scalar loss
@@ -151,8 +150,30 @@ class CaptioningRNN(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
-        
+        h_init, cache_affine           = affine_forward(features, W_proj, b_proj)
+        captions_in_embed, cache_embed = word_embedding_forward(captions_in, W_embed)
+        hidden_states, cache_forward   = rnn_forward(captions_in_embed,h_init, Wx, Wh,b)
+        scores, cache_temp_affine      = temporal_affine_forward(hidden_states, W_vocab, b_vocab)
+        loss, dscores                  = temporal_softmax_loss(scores, captions_out, mask)
+
+        dh, dW_vocab, db_vocab     = temporal_affine_backward(dscores, cache_temp_affine)
+        dx, dh_init, dWx, dWh, db  = rnn_backward(dh,cache_forward)
+        dW_embed                   = word_embedding_backward(dx, cache_embed)
+        ddh_init, dW_proj, db_proj = affine_backward(dh_init, cache_affine)
+
+        grads = {
+                  'W_vocab': dW_vocab,
+                  'b_vocab': db_vocab,
+                  'Wx'     : dWx,
+                  'Wh'     : dWh, 
+                  'b'      : db,
+                  'W_embed': dW_embed, 
+                  'W_proj' : dW_proj, 
+                  'b_proj' : db_proj
+                }
+
+        if self.gclip > 0:
+          grads = self.clip_grad_norm(grads, self.gclip)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -160,6 +181,7 @@ class CaptioningRNN(object):
         ############################################################################
 
         return loss, grads
+
 
     def clip_grad_norm(self, grads, gclip):
         """
@@ -175,9 +197,13 @@ class CaptioningRNN(object):
         # TODO: Implement gradient clipping using gclip value as the threshold.   #
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-       
-        pass
-                
+        clipped_grads = grads
+        for param_name in sorted(grads):
+          norm = np.sum(np.square(grads[param_name]))
+          if gclip > norm:
+            clipped_grads[param_name] *= (gclip / norm)
+
+
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -205,13 +231,13 @@ class CaptioningRNN(object):
           where each element is an integer in the range [0, V). The first element
           of captions should be the first sampled word, not the <START> token.
         """
-        N = features.shape[0]
+        N        = features.shape[0]
         captions = self._null * np.ones((N, max_length), dtype=np.int32)
 
         # Unpack parameters
-        W_proj, b_proj = self.params["W_proj"], self.params["b_proj"]
-        W_embed = self.params["W_embed"]
-        Wx, Wh, b = self.params["Wx"], self.params["Wh"], self.params["b"]
+        W_proj, b_proj   = self.params["W_proj"], self.params["b_proj"]
+        W_embed          = self.params["W_embed"]
+        Wx, Wh, b        = self.params["Wx"], self.params["Wh"], self.params["b"]
         W_vocab, b_vocab = self.params["W_vocab"], self.params["b_vocab"]
 
         ###########################################################################
@@ -239,7 +265,8 @@ class CaptioningRNN(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        #Embed the previous word
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
