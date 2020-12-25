@@ -348,7 +348,21 @@ class CaptioningRNN(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        h_init, cache_affine = affine_forward(features, W_proj, b_proj)
+        captions[:, 0]       = self._start
+        curr_word            = np.ones((N, 1), dtype=np.int32) * self._start
+        prev_h               = h_init
+        #Do we need <END>?
+        for t in range(max_length):
+            captions_in_embed, cache_embed = word_embedding_forward(curr_word, W_embed)
+            hidden_states, cache_forward   = rnn_step_forward(np.squeeze(captions_in_embed), prev_h, Wx, Wh, b) #1,1,256 to 256
+            scores, cache_temp_affine      = temporal_affine_forward(hidden_states[:, np.newaxis, :], W_vocab, b_vocab)
+            scores                         = np.squeeze(scores)
+            score_dist                     = np.exp(scores) / np.sum(np.exp(scores))
+            idx_sample                     = np.random.choice(len(score_dist),1,p=score_dist)
+            captions[:, t]                 = idx_sample
+            curr_word                      = captions[:, t]
+            prev_h                         = hidden_states
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
